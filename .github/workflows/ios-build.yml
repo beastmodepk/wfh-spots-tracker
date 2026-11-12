@@ -15,10 +15,33 @@ jobs:
       - name: Show Xcode version
         run: xcodebuild -version
 
+      - name: List schemes
+        run: |
+          xcodebuild -list -project WorkSpots/WorkSpots.xcodeproj
+
       - name: Build
         run: |
+          set -o pipefail
           xcodebuild build \
             -project WorkSpots/WorkSpots.xcodeproj \
             -scheme WorkSpots \
             -destination 'generic/platform=iOS' \
-            CODE_SIGNING_ALLOWED=NO
+            CODE_SIGNING_ALLOWED=NO 2>&1 | tee build.log
+
+      - name: Surface build errors
+        if: failure()
+        run: |
+          grep -E "error:" build.log | sort -u | head -30 | while IFS= read -r line; do
+            esc=$(printf '%s' "$line" | sed 's/%/%25/g; s/\r/%0D/g')
+            echo "::error::$esc"
+          done
+          echo "----- last 40 lines of build log -----"
+          tail -40 build.log
+
+      - name: Upload build log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-log
+          path: build.log
+          if-no-files-found: ignore
