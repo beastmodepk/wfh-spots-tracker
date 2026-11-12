@@ -31,7 +31,7 @@ Date of run: 2026-11-12.
   `fileSystemSynchronizedGroups`, and its path (`WorkSpots`) exists on disk.
 - `TARGETED_DEVICE_FAMILY = 1` (iPhone only) in both target configurations;
   iOS deployment target 17.0 at project and target level; bundle id
-  `com.workspots.app` in both target configurations;
+  `com.parthey.workspots` in both target configurations;
   `GENERATE_INFOPLIST_FILE = YES` in both; product type is application.
 - No Swift package references — zero third-party dependencies.
 - The shared scheme `WorkSpots` exists under `xcshareddata/xcschemes`, its
@@ -89,6 +89,6 @@ Date of run: 2026-11-12.
    with no image files (a placeholder). Xcode warns; add real icon PNGs
    before any App Store submission.
 4. **Signing is intentionally unconfigured** (empty team, automatic
-   signing, placeholder bundle id `com.workspots.app`). Building unsigned
+   signing, placeholder bundle id `com.parthey.workspots`). Building unsigned
    in CI works; running on a personal device needs the owner's team and
    bundle id set in Xcode.

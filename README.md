@@ -45,7 +45,7 @@ new spot anywhere into the catalog, unrated, stamped with your name.
 2. Open `WorkSpots/WorkSpots.xcodeproj`.
 3. Select the **WorkSpots** target → *Signing & Capabilities* and pick your
    own team. Change the bundle identifier if you like — the project ships
-   with the placeholder `com.workspots.app`.
+   with the placeholder `com.parthey.workspots`.
 4. Pick an iPhone (simulator or your device) and Run.
 
 There is nothing else to install: no CocoaPods, no Swift packages, no

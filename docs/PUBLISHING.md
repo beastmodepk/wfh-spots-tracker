@@ -13,7 +13,10 @@ App Store Connect → Apps → "+" → New App, with exactly:
 - Platform: iOS
 - Name: **Work Spots** (if taken, Alfred will suggest a variant before submission)
 - Primary language: English (U.S.)
-- Bundle ID: the one set in the Xcode project at that time (Alfred sets this first and confirms it here)
+- Bundle ID: **com.parthey.workspots** (set in the Xcode project 2026-11-12). If it is not in the
+  dropdown yet, register it first at developer.apple.com → Certificates, Identifiers & Profiles →
+  Identifiers → "+" → App IDs → App → description "Work Spots", Bundle ID (Explicit): com.parthey.workspots,
+  no capabilities needed → Register. Then it appears in the dropdown.
 - SKU: `workspots-ios-001`
 - User Access: Full Access
 
