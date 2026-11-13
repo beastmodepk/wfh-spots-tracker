@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Work Spots — App Store Connect Checklist</title>
+<style>
+  :root{--green:#124030;--cream:#f7f0df;--ink:#1c2420;--muted:#5c6a63;--line:#dfe5e0;--accent:#b7791f}
+  *{box-sizing:border-box}
+  body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;background:#f4f6f4;color:var(--ink)}
+  header{background:var(--green);color:var(--cream);padding:22px 18px 18px}
+  header h1{margin:0 0 4px;font-size:22px}
+  header p{margin:0;opacity:.85;font-size:14px}
+  main{max-width:680px;margin:0 auto;padding:16px 14px 40px}
+  .bar{height:10px;background:var(--line);border-radius:99px;overflow:hidden;margin:14px 0 4px}
+  .bar>div{height:100%;width:0;background:var(--green);transition:width .25s}
+  .pct{font-size:13px;color:var(--muted)}
+  section{background:#fff;border:1px solid var(--line);border-radius:14px;padding:16px;margin:14px 0}
+  h2{margin:0 0 2px;font-size:17px}
+  .sub{color:var(--muted);font-size:13px;margin:0 0 10px}
+  label.task{display:flex;gap:10px;align-items:flex-start;padding:9px 0;border-top:1px solid #eef1ee;font-size:15px;line-height:1.45}
+  label.task:first-of-type{border-top:none}
+  input[type=checkbox]{width:20px;height:20px;margin-top:1px;accent-color:var(--green);flex:none}
+  .done span{text-decoration:line-through;color:var(--muted)}
+  code{background:#eef3ef;border-radius:6px;padding:2px 7px;font-size:14px;word-break:break-all}
+  button.copy{border:1px solid var(--line);background:#fff;border-radius:8px;padding:2px 9px;font-size:12px;cursor:pointer;margin-left:6px;flex:none}
+  button.copy:active{background:var(--cream)}
+  a{color:var(--green);font-weight:600}
+  .warn{background:#fdf6e0;border:1px solid #eadfae;border-radius:10px;padding:10px 12px;font-size:14px;line-height:1.45;margin:10px 0}
+  .field{margin:8px 0}
+  .field label{font-size:13px;color:var(--muted);display:block;margin-bottom:3px}
+  .field input{width:100%;padding:9px 10px;border:1px solid var(--line);border-radius:9px;font-size:15px}
+  .finish{background:var(--cream);border-color:#e7dcc0;text-align:center}
+  .reset{margin-top:18px;background:none;border:none;color:var(--muted);font-size:13px;cursor:pointer;text-decoration:underline}
+  @media print{button.copy,.reset{display:none}}
+</style>
+</head>
+<body>
+<header>
+  <h1>🍎 Work Spots — finish the App Store setup</h1>
+  <p>Three parts · about 10 minutes · only you can do these (Apple account holder). Progress saves on this device.</p>
+</header>
+<main>
+  <div class="bar"><div id="fill"></div></div>
+  <div class="pct"><span id="pct">0</span>% done — <span id="left"></span></div>
+
+  <section>
+    <h2>Part 1 — Create the app record</h2>
+    <p class="sub"><a href="https://appstoreconnect.apple.com" target="_blank" rel="noopener">appstoreconnect.apple.com</a> → Apps → + → New App</p>
+    <label class="task"><input type="checkbox" data-k="p1a"><span>Platforms: <b>iOS</b> ✓ · Primary language: <b>English (U.S.)</b></span></label>
+    <label class="task"><input type="checkbox" data-k="p1b"><span>Name: <code>Work Spots</code><button class="copy" data-copy="Work Spots">Copy</button></span></label>
+    <label class="task"><input type="checkbox" data-k="p1c"><span>Bundle ID: <code>com.parthey.workspots</code><button class="copy" data-copy="com.parthey.workspots">Copy</button></span></label>
+    <label class="task"><input type="checkbox" data-k="p1d"><span>SKU: <code>workspots-ios-001</code><button class="copy" data-copy="workspots-ios-001">Copy</button> · User Access: <b>Full Access</b></span></label>
+    <label class="task"><input type="checkbox" data-k="p1e"><span>Tapped <b>Create</b></span></label>
+    <div class="warn"><b>Bundle ID missing from the dropdown?</b> Register it first: <a href="https://developer.apple.com/account" target="_blank" rel="noopener">developer.apple.com</a> → Certificates, Identifiers &amp; Profiles → Identifiers → + → App IDs → App → description “Work Spots”, Explicit ID <code>com.parthey.workspots</code>, no capabilities → Register, then come back.<br><b>Name taken?</b> Stop and ask Alfred for a variant — don't improvise.</div>
+  </section>
+
+  <section>
+    <h2>Part 2 — Create the API key</h2>
+    <p class="sub">App Store Connect → Users and Access → <b>Integrations</b> → App Store Connect API → Generate API Key</p>
+    <label class="task"><input type="checkbox" data-k="p2a"><span>Name: <code>Alfred CI</code><button class="copy" data-copy="Alfred CI">Copy</button> · Access: <b>Admin</b> (needed so CI can create signing certificates automatically)</span></label>
+    <label class="task"><input type="checkbox" data-k="p2b"><span>Downloaded the <code>.p8</code> key file</span></label>
+    <div class="warn">⚠️ The .p8 downloads <b>once only</b>. Keep it safe until Part 3. Never paste it into chat, email, or this page — it goes straight into GitHub.</div>
+    <div class="field"><label>Key ID (from the keys page — safe to note here)</label><input data-save="keyid" autocomplete="off" placeholder="e.g. AB12CD34EF"></div>
+    <div class="field"><label>Issuer ID (long code at the top of the keys page)</label><input data-save="issuerid" autocomplete="off" placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"></div>
+  </section>
+
+  <section>
+    <h2>Part 3 — Add the four GitHub secrets</h2>
+    <p class="sub">Team ID first: <a href="https://developer.apple.com/account" target="_blank" rel="noopener">developer.apple.com/account</a> → Membership details. Then <a href="https://github.com/beastmodepk/wfh-spots-tracker/settings/secrets/actions" target="_blank" rel="noopener">repo → Settings → Secrets and variables → Actions</a> → New repository secret, four times:</p>
+    <div class="field"><label>Team ID (10 characters — safe to note here)</label><input data-save="teamid" autocomplete="off" placeholder="e.g. A1B2C3D4E5"></div>
+    <label class="task"><input type="checkbox" data-k="p3a"><span><code>ASC_KEY_ID</code><button class="copy" data-copy="ASC_KEY_ID">Copy name</button> → value = Key ID from Part 2</span></label>
+    <label class="task"><input type="checkbox" data-k="p3b"><span><code>ASC_ISSUER_ID</code><button class="copy" data-copy="ASC_ISSUER_ID">Copy name</button> → value = Issuer ID from Part 2</span></label>
+    <label class="task"><input type="checkbox" data-k="p3c"><span><code>ASC_KEY_P8</code><button class="copy" data-copy="ASC_KEY_P8">Copy name</button> → value = the .p8 file's <b>entire</b> contents, including the <code>-----BEGIN PRIVATE KEY-----</code> and <code>-----END PRIVATE KEY-----</code> lines</span></label>
+    <label class="task"><input type="checkbox" data-k="p3d"><span><code>ASC_TEAM_ID</code><button class="copy" data-copy="ASC_TEAM_ID">Copy name</button> → value = Team ID</span></label>
+  </section>
+
+  <section class="finish" id="finish" hidden>
+    <h2>🎉 That's everything on your side</h2>
+    <p>Tell Alfred <b>“done”</b> in the chat — he'll fire the release workflow, and the first signed build should land in TestFlight within about 15–30 minutes of Apple processing.</p>
+  </section>
+  <button class="reset" id="reset">Reset checklist</button>
+</main>
+<script>
+  var KEY='workspots-asc-checklist-v1';
+  var state={};
+  try{state=JSON.parse(localStorage.getItem(KEY)||'{}')}catch(e){state={}}
+  var boxes=[].slice.call(document.querySelectorAll('input[type=checkbox]'));
+  var fields=[].slice.call(document.querySelectorAll('[data-save]'));
+  function render(){
+    var done=boxes.filter(function(b){return b.checked}).length;
+    var pct=Math.round(done/boxes.length*100);
+    document.getElementById('fill').style.width=pct+'%';
+    document.getElementById('pct').textContent=pct;
+    document.getElementById('left').textContent=(boxes.length-done)+' of '+boxes.length+' steps left';
+    document.getElementById('finish').hidden=!(done===boxes.length);
+  }
+  function save(){
+    boxes.forEach(function(b){state[b.dataset.k]=b.checked});
+    fields.forEach(function(f){state['f:'+f.dataset.save]=f.value});
+    localStorage.setItem(KEY,JSON.stringify(state));
+  }
+  boxes.forEach(function(b){
+    b.checked=!!state[b.dataset.k];
+    b.closest('label').classList.toggle('done',b.checked);
+    b.addEventListener('change',function(){b.closest('label').classList.toggle('done',b.checked);save();render()});
+  });
+  fields.forEach(function(f){
+    f.value=state['f:'+f.dataset.save]||'';
+    f.addEventListener('input',save);
+  });
+  document.querySelectorAll('button.copy').forEach(function(btn){
+    btn.type='button';
+    btn.addEventListener('click',function(ev){
+      ev.preventDefault();
+      var t=btn.dataset.copy;
+      function ok(){btn.textContent='Copied ✓';setTimeout(function(){btn.textContent=btn.dataset.copy.indexOf('ASC_')===0?'Copy name':'Copy'},1200)}
+      if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(t).then(ok,ok)}else{ok()}
+    });
+  });
+  document.getElementById('reset').addEventListener('click',function(){
+    localStorage.removeItem(KEY);state={};
+    boxes.forEach(function(b){b.checked=false;b.closest('label').classList.remove('done')});
+    fields.forEach(function(f){f.value=''});render();
+  });
+  render();
+</script>
+</body>
+</html>
