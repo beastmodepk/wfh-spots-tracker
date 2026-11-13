@@ -1,0 +1,169 @@
+name: Release — TestFlight
+
+# Merge to main  -> signed archive -> TestFlight (internal testers, no Apple review)
+# Tag vX.Y.Z     -> same upload, marketing version taken from the tag.
+#                  Submit that build for App Store review MANUALLY in
+#                  App Store Connect (see docs/VERSIONING.md) — Apple review
+#                  always sits between submission and the public store,
+#                  so merge-to-main can never publish publicly by itself.
+#
+# If the ASC_* secrets are not set yet, this workflow still runs: it does
+# the unsigned build and skips signing/upload with a clear notice, so the
+# pipeline lights up automatically the day the secrets land.
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      marketing_version:
+        description: "Marketing version override (e.g. 1.1.0). Blank = keep project value."
+        required: false
+        type: string
+
+concurrency:
+  group: release-main
+  cancel-in-progress: false
+
+jobs:
+  release:
+    name: Archive + upload to TestFlight
+    runs-on: macos-15
+    steps:
+      - name: Check out the repo
+        uses: actions/checkout@v4
+
+      - name: Show Xcode version
+        run: xcodebuild -version
+
+      - name: Check App Store Connect secrets
+        id: secrets
+        env:
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+          ASC_KEY_P8: ${{ secrets.ASC_KEY_P8 }}
+          ASC_TEAM_ID: ${{ secrets.ASC_TEAM_ID }}
+        run: |
+          if [ -n "$ASC_KEY_ID" ] && [ -n "$ASC_ISSUER_ID" ] && [ -n "$ASC_KEY_P8" ] && [ -n "$ASC_TEAM_ID" ]; then
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+            echo "App Store Connect secrets present — signed release path."
+          else
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+            echo "::warning::ASC_KEY_ID / ASC_ISSUER_ID / ASC_KEY_P8 / ASC_TEAM_ID are not all set. Running the unsigned build only; signing + TestFlight upload skipped. See docs/PUBLISHING.md steps 3-4."
+          fi
+
+      - name: Compute versions
+        id: versions
+        run: |
+          # Marketing version: tag (v1.2.0) > manual input > project value.
+          MV=""
+          if [[ "$GITHUB_REF" == refs/tags/v* ]]; then MV="${GITHUB_REF_NAME#v}"; fi
+          if [ -n "${{ inputs.marketing_version }}" ]; then MV="${{ inputs.marketing_version }}"; fi
+          # Build number: strictly increasing, unique per upload, never hand-edited.
+          # run_number*10 + run_attempt keeps re-runs of the same run increasing too.
+          BN=$(( GITHUB_RUN_NUMBER * 10 + GITHUB_RUN_ATTEMPT ))
+          echo "marketing_version=$MV" >> "$GITHUB_OUTPUT"
+          echo "build_number=$BN" >> "$GITHUB_OUTPUT"
+          echo "Marketing version override: '${MV:-<project value>}' · Build number: $BN"
+
+      - name: Set versions in the project
+        run: |
+          cd WorkSpots
+          BN="${{ steps.versions.outputs.build_number }}"
+          MV="${{ steps.versions.outputs.marketing_version }}"
+          # agvtool writes CURRENT_PROJECT_VERSION (and MARKETING_VERSION if given)
+          xcrun agvtool new-version -all "$BN" > /dev/null
+          if [ -n "$MV" ]; then xcrun agvtool new-marketing-version "$MV" > /dev/null; fi
+          grep -E "MARKETING_VERSION|CURRENT_PROJECT_VERSION" WorkSpots.xcodeproj/project.pbxproj | sort -u
+
+      - name: Unsigned build (secrets not set yet)
+        if: steps.secrets.outputs.ready != 'true'
+        run: |
+          set -o pipefail
+          xcodebuild build \
+            -project WorkSpots/WorkSpots.xcodeproj \
+            -scheme WorkSpots \
+            -destination 'generic/platform=iOS' \
+            CODE_SIGNING_ALLOWED=NO 2>&1 | tee build.log
+          echo "### Release pipeline: DRY RUN ⚠️" >> "$GITHUB_STEP_SUMMARY"
+          echo "Unsigned build passed. Add the ASC_* secrets (docs/PUBLISHING.md) and the next merge to main will archive signed and upload to TestFlight." >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Write App Store Connect API key
+        if: steps.secrets.outputs.ready == 'true'
+        env:
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ASC_KEY_P8: ${{ secrets.ASC_KEY_P8 }}
+        run: |
+          mkdir -p "$HOME/private_keys"
+          printf '%s' "$ASC_KEY_P8" > "$HOME/private_keys/AuthKey_${ASC_KEY_ID}.p8"
+          echo "KEY_PATH=$HOME/private_keys/AuthKey_${ASC_KEY_ID}.p8" >> "$GITHUB_ENV"
+
+      - name: Fill team ID into ExportOptions
+        if: steps.secrets.outputs.ready == 'true'
+        env:
+          ASC_TEAM_ID: ${{ secrets.ASC_TEAM_ID }}
+        run: |
+          # ExportOptions.plist ships with the literal placeholder $(ASC_TEAM_ID)
+          sed -i '' "s|\$(ASC_TEAM_ID)|${ASC_TEAM_ID}|" ExportOptions.plist
+          grep -A1 teamID ExportOptions.plist
+
+      - name: Archive (signed, automatic provisioning via API key)
+        if: steps.secrets.outputs.ready == 'true'
+        env:
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+          ASC_TEAM_ID: ${{ secrets.ASC_TEAM_ID }}
+        run: |
+          set -o pipefail
+          xcodebuild archive \
+            -project WorkSpots/WorkSpots.xcodeproj \
+            -scheme WorkSpots \
+            -destination 'generic/platform=iOS' \
+            -archivePath "$RUNNER_TEMP/WorkSpots.xcarchive" \
+            -allowProvisioningUpdates \
+            -authenticationKeyPath "$KEY_PATH" \
+            -authenticationKeyID "$ASC_KEY_ID" \
+            -authenticationKeyIssuerID "$ASC_ISSUER_ID" \
+            DEVELOPMENT_TEAM="$ASC_TEAM_ID" 2>&1 | tee archive.log
+
+      - name: Export .ipa
+        if: steps.secrets.outputs.ready == 'true'
+        env:
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+        run: |
+          xcodebuild -exportArchive \
+            -archivePath "$RUNNER_TEMP/WorkSpots.xcarchive" \
+            -exportPath "$RUNNER_TEMP/export" \
+            -exportOptionsPlist ExportOptions.plist \
+            -allowProvisioningUpdates \
+            -authenticationKeyPath "$KEY_PATH" \
+            -authenticationKeyID "$ASC_KEY_ID" \
+            -authenticationKeyIssuerID "$ASC_ISSUER_ID"
+          ls -lh "$RUNNER_TEMP/export"
+
+      - name: Upload to TestFlight
+        if: steps.secrets.outputs.ready == 'true'
+        env:
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+        run: |
+          IPA=$(ls "$RUNNER_TEMP/export"/*.ipa | head -1)
+          xcrun altool --upload-app \
+            --type ios \
+            --file "$IPA" \
+            --apiKey "$ASC_KEY_ID" \
+            --apiIssuer "$ASC_ISSUER_ID"
+          echo "### Release pipeline: UPLOADED ✅" >> "$GITHUB_STEP_SUMMARY"
+          echo "Build ${{ steps.versions.outputs.build_number }} uploaded to TestFlight. It appears for internal testers after Apple processing (usually 15-30 min). To go public: pick this build in App Store Connect and Submit for Review — see docs/VERSIONING.md." >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-logs
+          path: |
+            build.log
+            archive.log
+          if-no-files-found: ignore

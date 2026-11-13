@@ -1,8 +1,11 @@
 # Publishing Work Spots — App Store checklist
 
 Owner steps are Parthey's (Apple requires the account holder); everything else is Alfred's.
-Status (2026-11-12): CI builds the unsigned app green. Enrollment in the Apple Developer
-Program is in progress.
+Status (2026-11-13): Apple Developer account ENABLED. Release pipeline BUILT —
+`.github/workflows/release.yml` (merge to main → signed archive → TestFlight;
+runs as an unsigned dry run until the secrets below exist), app icon generated,
+privacy policy at `docs/PRIVACY.md`, versioning rules at `docs/VERSIONING.md`.
+Remaining gates are steps 2–4 below, all Parthey's.
 
 ## 1. Apple Developer Program (Parthey)
 - Enroll as Individual via the Apple Developer app (identity verification + $99/yr).
@@ -32,15 +35,22 @@ Repo → Settings → Secrets and variables → Actions → New repository secre
 - `ASC_KEY_ID` — from step 3
 - `ASC_ISSUER_ID` — from step 3
 - `ASC_KEY_P8` — full contents of the .p8 file
+- `ASC_TEAM_ID` — developer.apple.com → Account → Membership details → Team ID
 
-## 5. Release pipeline (Alfred)
-- Set the real bundle ID in the project; generate the app icon; privacy policy page in `docs/`.
-- Add a release workflow: on a version tag, archive with cloud signing
-  (`-allowProvisioningUpdates` + API-key auth), export, and upload to TestFlight.
-- Fill the listing via the API: description, keywords, categories (Food & Drink / Productivity),
-  age rating, privacy = Data Not Collected (all data stays on-device), support + privacy URLs.
+## 5. Release pipeline (Alfred) — BUILT 2026-11-13
+- ✅ Real bundle ID in the project; app icon generated (1024px, pin + coffee cup);
+  privacy policy page at `docs/PRIVACY.md`.
+- ✅ Release workflow `.github/workflows/release.yml`: on merge to `main` (or tag
+  `v*`) it sets the build number automatically, archives with cloud signing
+  (`-allowProvisioningUpdates` + API-key auth), exports, uploads to TestFlight.
+  Until the secrets exist it runs the unsigned build and skips upload with a warning.
+- Still Alfred's, once the API key exists: fill the listing via the API —
+  description, keywords, categories (Food & Drink / Productivity), age rating,
+  privacy = Data Not Collected (all data stays on-device), support + privacy URLs
+  (privacy URL needs a hosted page — GitHub Pages on this repo is the easy host).
 - Parthey tests via TestFlight; then submit for review (Alfred drives it via the API key,
   or leaves the final Submit click to Parthey — his choice at the time).
+  Versioning + how updates reach users: `docs/VERSIONING.md`.
 
 ## Notes
 - TestFlight builds last 90 days; App Store builds do not expire.
