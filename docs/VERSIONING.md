@@ -68,5 +68,5 @@ previous ones:
 
 ## Per-app state of this standard
 
-See `~/workspace/app-store-pipeline/STANDARD.md` in Alfred's workspace for
+See the app-store pipeline standard document for
 the live inventory: which apps have this pipeline, and what blocks each one.

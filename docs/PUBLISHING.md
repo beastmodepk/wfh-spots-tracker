@@ -1,6 +1,6 @@
 # Publishing Work Spots — App Store checklist
 
-Owner steps are Parthey's (Apple requires the account holder); everything else is Alfred's.
+Owner steps are Parthey's (Apple requires the account holder); the remaining steps are handled separately.
 Status (2026-11-13): Apple Developer account ENABLED. Release pipeline BUILT —
 `.github/workflows/release.yml` (merge to main → signed archive → TestFlight;
 runs as an unsigned dry run until the secrets below exist), app icon generated,
@@ -16,7 +16,7 @@ hidden from App Store search, family get it free via promo codes.
 ## 2. App record in App Store Connect (Parthey, ~2 minutes — Apple only allows the account holder)
 App Store Connect → Apps → "+" → New App, with exactly:
 - Platform: iOS
-- Name: **Work Spots** (if taken, Alfred will suggest a variant before submission)
+- Name: **Work Spots** (if taken, a variant will be suggested before submission)
 - Primary language: English (U.S.)
 - Bundle ID: **com.parthey.workspots** (set in the Xcode project 2026-11-12). If it is not in the
   dropdown yet, register it first at developer.apple.com → Certificates, Identifiers & Profiles →
@@ -25,12 +25,12 @@ App Store Connect → Apps → "+" → New App, with exactly:
 - SKU: `workspots-ios-001`
 - User Access: Full Access
 
-## 3. App Store Connect API key (Parthey creates, Alfred uses)
+## 3. App Store Connect API key (Parthey creates, CI uses)
 - App Store Connect → Users and Access → Integrations (API Keys) → Generate API Key
-  - Name: `Alfred CI`
+  - Name: `Release CI`
   - Access: **Admin** (needed so CI can create signing certificates automatically)
 - Note the **Key ID** and **Issuer ID** shown on that page.
-- Download the `.p8` file (downloadable ONCE) and hand it to Alfred via Secure Vault — never chat, never email.
+- Download the `.p8` file (downloadable ONCE) and store it via Secure Vault — never chat, never email.
 
 ## 4. GitHub repo secrets (Parthey adds — deploy key cannot)
 Repo → Settings → Secrets and variables → Actions → New repository secret:
@@ -39,18 +39,18 @@ Repo → Settings → Secrets and variables → Actions → New repository secre
 - `ASC_KEY_P8` — full contents of the .p8 file
 - `ASC_TEAM_ID` — developer.apple.com → Account → Membership details → Team ID
 
-## 5. Release pipeline (Alfred) — BUILT 2026-11-13
+## 5. Release pipeline — BUILT 2026-11-13
 - ✅ Real bundle ID in the project; app icon generated (1024px, pin + coffee cup);
   privacy policy page at `docs/PRIVACY.md`.
 - ✅ Release workflow `.github/workflows/release.yml`: on merge to `main` (or tag
   `v*`) it sets the build number automatically, archives with cloud signing
   (`-allowProvisioningUpdates` + API-key auth), exports, uploads to TestFlight.
   Until the secrets exist it runs the unsigned build and skips upload with a warning.
-- Still Alfred's, once the API key exists: fill the listing via the API —
+- Still to do, once the API key exists: fill the listing via the API —
   description, keywords, categories (Food & Drink / Productivity), age rating,
   privacy = Data Not Collected (all data stays on-device), support + privacy URLs
   (privacy URL needs a hosted page — GitHub Pages on this repo is the easy host).
-- Parthey tests via TestFlight; then submit for review (Alfred drives it via the API key,
+- Parthey tests via TestFlight; then submit for review (submission is driven via the API key,
   or leaves the final Submit click to Parthey — his choice at the time).
   Versioning + how updates reach users: `docs/VERSIONING.md`.
 
@@ -65,7 +65,7 @@ App Store Connect:
 1. **Paid Apps Agreement (Parthey, account holder).** App Store Connect →
    Business → Agreements, Tax, and Banking → accept the Paid Apps Agreement
    and complete tax/banking. Without it the app can only be offered free.
-2. **Price $9.99 (Alfred via API, or Parthey in Connect).** App → Pricing and
+2. **Price $9.99 (via API, or Parthey in Connect).** App → Pricing and
    Availability → Add Pricing → base country United States → **$9.99**.
    Apple generates the other storefront prices from that base.
 3. **Manual release (important).** On the version page set release to
@@ -87,7 +87,7 @@ App Store Connect:
 7. **Release the version** once BOTH App Review and the unlisted request are
    approved. Result: no search / categories / charts / recommendations —
    installable only via the direct link.
-8. **Promo codes — family get it free (Alfred generates, Parthey sends).**
+8. **Promo codes — family get it free (generated in Connect, Parthey sends).**
    App Store Connect → app → Promo Codes → request codes for the current
    version. Rules: up to **100 per version per platform**, each **single-use**,
    **expires 4 weeks after generation** — so generate only when a family
