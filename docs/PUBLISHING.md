@@ -6,6 +6,8 @@ Status (2026-11-13): Apple Developer account ENABLED. Release pipeline BUILT —
 runs as an unsigned dry run until the secrets below exist), app icon generated,
 privacy policy at `docs/PRIVACY.md`, versioning rules at `docs/VERSIONING.md`.
 Remaining gates are steps 2–4 below, all Parthey's.
+Distribution DECIDED 2026-11-13: **Unlisted + $9.99 + promo codes** (section 6) —
+hidden from App Store search, family get it free via promo codes.
 
 ## 1. Apple Developer Program (Parthey)
 - Enroll as Individual via the Apple Developer app (identity verification + $99/yr).
@@ -26,7 +28,7 @@ App Store Connect → Apps → "+" → New App, with exactly:
 ## 3. App Store Connect API key (Parthey creates, Alfred uses)
 - App Store Connect → Users and Access → Integrations (API Keys) → Generate API Key
   - Name: `Alfred CI`
-  - Access: **App Manager** (Admin also works and enables fully automatic signing)
+  - Access: **Admin** (needed so CI can create signing certificates automatically)
 - Note the **Key ID** and **Issuer ID** shown on that page.
 - Download the `.p8` file (downloadable ONCE) and hand it to Alfred via Secure Vault — never chat, never email.
 
@@ -51,6 +53,55 @@ Repo → Settings → Secrets and variables → Actions → New repository secre
 - Parthey tests via TestFlight; then submit for review (Alfred drives it via the API key,
   or leaves the final Submit click to Parthey — his choice at the time).
   Versioning + how updates reach users: `docs/VERSIONING.md`.
+
+## 6. Distribution — Unlisted + $9.99 + promo codes (DECIDED 2026-11-13, Parthey)
+
+Goal: family use the app free, indefinitely, with normal App Store updates —
+while the public can't find it and is deterred from buying it if the link leaks.
+
+Order matters; do these in sequence once steps 2–4 are done and a build is in
+App Store Connect:
+
+1. **Paid Apps Agreement (Parthey, account holder).** App Store Connect →
+   Business → Agreements, Tax, and Banking → accept the Paid Apps Agreement
+   and complete tax/banking. Without it the app can only be offered free.
+2. **Price $9.99 (Alfred via API, or Parthey in Connect).** App → Pricing and
+   Availability → Add Pricing → base country United States → **$9.99**.
+   Apple generates the other storefront prices from that base.
+3. **Manual release (important).** On the version page set release to
+   **Manually release this version**. Do NOT auto-release: the app must not go
+   live as a searchable public listing while the unlisted request is pending.
+4. **Review Notes — paste exactly this** in the version's App Review
+   Information → Notes field before submitting:
+   > This app is intended for unlisted distribution to a small, limited
+   > audience (the developer's family). A request for unlisted app
+   > distribution will be submitted for this app. It is a finished app,
+   > not a beta or prerelease.
+5. **Submit for Review** (final Submit stays Parthey's tap, per house standard).
+6. **Unlisted request (Parthey, account holder only).** After submitting to
+   App Review, file https://developer.apple.com/contact/request/unlisted-app/
+   Requests are declined if the app hasn't been submitted to App Review or is
+   in a beta/prerelease state. On approval the distribution method changes to
+   **Unlisted App** under Pricing and Availability (and stays unlisted for all
+   future versions); the App Store link itself stays the same.
+7. **Release the version** once BOTH App Review and the unlisted request are
+   approved. Result: no search / categories / charts / recommendations —
+   installable only via the direct link.
+8. **Promo codes — family get it free (Alfred generates, Parthey sends).**
+   App Store Connect → app → Promo Codes → request codes for the current
+   version. Rules: up to **100 per version per platform**, each **single-use**,
+   **expires 4 weeks after generation** — so generate only when a family
+   member is ready to redeem, one fresh code per person. A redeemed app
+   functions as if purchased: permanent ownership, free re-downloads, and
+   normal updates for every future version (no new code needed per update).
+   Family redeem path: App Store app → profile picture → Redeem Gift Card
+   or Code → enter the code manually.
+   Note: promo-code users can't leave an App Store rating/review — fine here.
+
+Caveats, plainly: unlisted is *hidden, not private* — anyone who gets the
+link can buy it at $9.99 (the price is the deterrent, not a lock; the app has
+no login gate). Treat the link like a family secret. If real access control
+is ever needed, it has to be built into the app.
 
 ## Notes
 - TestFlight builds last 90 days; App Store builds do not expire.
