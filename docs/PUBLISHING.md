@@ -1,11 +1,13 @@
 # Publishing Work Spots — App Store checklist
 
 Owner steps are Parthey's (Apple requires the account holder); the remaining steps are handled separately.
-Status (2026-11-13): Apple Developer account ENABLED. Release pipeline BUILT —
-`.github/workflows/release.yml` (merge to main → signed archive → TestFlight;
-runs as an unsigned dry run until the secrets below exist), app icon generated,
-privacy policy at `docs/PRIVACY.md`, versioning rules at `docs/VERSIONING.md`.
-Remaining gates are steps 2–4 below, all Parthey's.
+Status (2026-11-18): Apple Developer account ENABLED. Release pipeline BUILT —
+`.github/workflows/release.yml` (merge to main → signed archive → TestFlight),
+app icon generated, privacy policy at `docs/PRIVACY.md`, versioning rules at
+`docs/VERSIONING.md`. App Store Connect record CREATED 2026-11-18 under store
+name "My Work Spots" (plain "Work Spots" was already taken); bundle ID
+com.parthey.workspots registered same day. API key "Alfred CI" (Admin) created
+and the four GitHub secrets added 2026-11-18 — steps 2–4 below are DONE.
 Distribution DECIDED 2026-11-13: **Unlisted + $9.99 + promo codes** (section 6) —
 hidden from App Store search, family get it free via promo codes.
 
@@ -27,7 +29,7 @@ App Store Connect → Apps → "+" → New App, with exactly:
 
 ## 3. App Store Connect API key (Parthey creates, CI uses)
 - App Store Connect → Users and Access → Integrations (API Keys) → Generate API Key
-  - Name: `Release CI`
+  - Name: `Alfred CI`
   - Access: **Admin** (needed so CI can create signing certificates automatically)
 - Note the **Key ID** and **Issuer ID** shown on that page.
 - Download the `.p8` file (downloadable ONCE) and store it via Secure Vault — never chat, never email.
