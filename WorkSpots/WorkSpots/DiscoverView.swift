@@ -12,7 +12,8 @@ struct DiscoverView: View {
     private let tagOptions = ["light food", "boutique", "stretch"]
 
     private var filteredPlaces: [Place] {
-        store.places.filter { place in
+        // "All" order: On Deck first by highest rating, the rest after.
+        store.discoverOrdered(store.places.filter { place in
             if let town = selectedTown, place.town != town { return false }
             if let type = selectedType, place.type != type { return false }
             if let tag = selectedTag, !place.tags.contains(tag) { return false }
@@ -22,7 +23,7 @@ struct DiscoverView: View {
                 if !haystack.contains(query) { return false }
             }
             return true
-        }
+        })
     }
 
     var body: some View {
@@ -144,6 +145,7 @@ struct PlaceRowView: View {
     let place: Place
 
     var body: some View {
+        HStack(alignment: .top, spacing: 10) {
         VStack(alignment: .leading, spacing: 5) {
             HStack(alignment: .firstTextBaseline) {
                 Image(systemName: place.type.systemImage)
@@ -198,6 +200,11 @@ struct PlaceRowView: View {
                     }
                 }
             }
+        }
+
+        OnDeckRingButton(isOn: place.listStatus == .onDeck) {
+            store.toggleOnDeck(for: place.id)
+        }
         }
         .padding(.vertical, 4)
     }

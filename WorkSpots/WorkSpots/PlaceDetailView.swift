@@ -51,6 +51,17 @@ struct PlaceDetailView: View {
                     }
                     .buttonStyle(.borderedProminent)
                     .controlSize(.large)
+
+                    HStack(spacing: 8) {
+                        Image(systemName: "circle.circle")
+                            .foregroundStyle(Color.accentColor)
+                        Text(place.listStatus == .onDeck ? "On Deck" : "Add to On Deck")
+                            .font(.subheadline.weight(.semibold))
+                        Spacer()
+                        OnDeckRingButton(isOn: place.listStatus == .onDeck) {
+                            store.toggleOnDeck(for: place.id)
+                        }
+                    }
                 }
                 .listRowInsets(EdgeInsets(top: 12, leading: 16, bottom: 12, trailing: 16))
             }

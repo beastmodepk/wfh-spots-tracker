@@ -131,3 +131,36 @@ extension Place {
         return labels
     }
 }
+
+/// The On Deck toggle: a small 26pt ring, favourite-button sized, but its
+/// own mark — an on-deck circle. Hollow ring when off; filled orange with a
+/// white centre dot when the spot is On Deck. Deliberately not a heart,
+/// star or bookmark.
+struct OnDeckRingButton: View {
+    let isOn: Bool
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            ZStack {
+                Circle()
+                    .strokeBorder(Color.accentColor, lineWidth: 1.8)
+                if isOn {
+                    Circle()
+                        .fill(Color.accentColor)
+                    Circle()
+                        .fill(Color.white)
+                        .frame(width: 6, height: 6)
+                } else {
+                    Circle()
+                        .strokeBorder(Color.accentColor, lineWidth: 1.8)
+                        .frame(width: 10, height: 10)
+                }
+            }
+            .frame(width: 26, height: 26)
+            .contentShape(Circle())
+        }
+        .buttonStyle(.borderless)
+        .accessibilityLabel(isOn ? "On Deck, tap to remove" : "Add to On Deck")
+    }
+}
