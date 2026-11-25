@@ -13,9 +13,15 @@ struct CheckInView: View {
     @State private var review = ""
     @State private var wouldReturn = true
     @State private var date = Date()
+    /// True after saving a check-in at an On Deck spot: the sheet then asks
+    /// the Repeat / Never question before it dismisses.
+    @State private var showingOnDeckChoice = false
 
     var body: some View {
         NavigationStack {
+            if showingOnDeckChoice {
+                onDeckChoice
+            } else {
             Form {
                 Section {
                     VStack(alignment: .leading, spacing: 6) {
@@ -70,10 +76,59 @@ struct CheckInView: View {
                         .fontWeight(.semibold)
                 }
             }
+            }
         }
     }
 
+    /// Shown after a check-in clears a spot from On Deck: the user decides
+    /// whether it becomes a Repeat or is never suggested again.
+    private var onDeckChoice: some View {
+        VStack(spacing: 16) {
+            Image(systemName: "checkmark.circle.fill")
+                .font(.system(size: 44))
+                .foregroundStyle(.green)
+            Text("Checked in to \(place.name)")
+                .font(.headline)
+                .multilineTextAlignment(.center)
+            Text("That clears it from On Deck. What should happen to this spot now?")
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+                .multilineTextAlignment(.center)
+
+            Button {
+                store.completeOnDeck(for: place.id, choice: .repeats)
+                dismiss()
+            } label: {
+                Label("Repeat", systemImage: "repeat")
+                    .font(.headline)
+                    .frame(maxWidth: .infinity)
+            }
+            .buttonStyle(.borderedProminent)
+            .controlSize(.large)
+
+            Button {
+                store.completeOnDeck(for: place.id, choice: .never)
+                dismiss()
+            } label: {
+                Label("Never", systemImage: "slash.circle")
+                    .font(.headline)
+                    .frame(maxWidth: .infinity)
+            }
+            .buttonStyle(.bordered)
+            .controlSize(.large)
+
+            Text("Repeat moves it to the Repeats tab. Never means it won't be suggested again.")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .multilineTextAlignment(.center)
+        }
+        .padding()
+        .navigationTitle("On Deck — done")
+        .navigationBarTitleDisplayMode(.inline)
+    }
+
     private func save() {
+        let wasOnDeck = store.place(for: place.id)?.listStatus == .onDeck
         store.addCheckIn(
             placeID: place.id,
             date: date,
@@ -83,6 +138,10 @@ struct CheckInView: View {
             review: review.trimmingCharacters(in: .whitespacesAndNewlines),
             wouldReturn: wouldReturn
         )
-        dismiss()
+        if wasOnDeck {
+            showingOnDeckChoice = true
+        } else {
+            dismiss()
+        }
     }
 }
