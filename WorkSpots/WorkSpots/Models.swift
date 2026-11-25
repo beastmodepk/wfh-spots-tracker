@@ -25,6 +25,23 @@ enum PlaceType: String, Codable, CaseIterable, Identifiable {
     }
 }
 
+/// Which personal list a spot sits on, if any.
+/// - `onDeck`: saved to try next; drives the Discover sort and nearby suggestions.
+/// - `repeats`: tried it, would go again; lives on the Repeats tab.
+/// - `never`: tried it (or ruled it out); never suggested again.
+enum PlaceListStatus: String, Codable, CaseIterable {
+    case none
+    case onDeck
+    case repeats
+    case never
+}
+
+/// What the user chose for an On Deck spot after checking in there.
+enum OnDeckCompletionChoice {
+    case repeats
+    case never
+}
+
 /// A single work-from-anywhere spot: a café, a library, or something else.
 struct Place: Identifiable, Codable, Hashable {
     var id: UUID
@@ -43,6 +60,12 @@ struct Place: Identifiable, Codable, Hashable {
     var tags: [String]
     /// Display name of the user who added this spot, when it was user-added.
     var addedBy: String?
+    /// Which personal list this spot is on (On Deck / Repeats / Never).
+    var listStatus: PlaceListStatus = .none
+    /// Approximate coordinates from the street address, for nearby
+    /// suggestions and distance tie-breaks. Nil when not geocoded.
+    var latitude: Double? = nil
+    var longitude: Double? = nil
 
     var isStretch: Bool { tags.contains("stretch") }
 
@@ -114,6 +137,35 @@ struct CheckIn: Identifiable, Codable, Hashable {
 /// The local user profile. In the backend phase this becomes the account identity.
 struct UserProfile: Codable, Hashable {
     var displayName: String = "Parthey"
+    /// Smart nearby suggestions for On Deck spots (one per area per day).
+    var nearbySuggestionsEnabled: Bool = true
+    /// A single daily pick for the home area instead of an arrival ping.
+    var dailyHomePickEnabled: Bool = true
+    /// The town treated as home: no arrival pings there, daily pick instead.
+    var homeTown: String = "Burlington"
+    /// How close counts as "in the area", in miles.
+    var suggestionRadiusMiles: Double = 2.0
+    /// Suggestions are only sent between these local hours.
+    var suggestionStartHour: Int = 8
+    var suggestionEndHour: Int = 18
+}
+
+extension UserProfile {
+    private enum ProfileCodingKeys: String, CodingKey {
+        case displayName, nearbySuggestionsEnabled, dailyHomePickEnabled
+        case homeTown, suggestionRadiusMiles, suggestionStartHour, suggestionEndHour
+    }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: ProfileCodingKeys.self)
+        displayName = try c.decodeIfPresent(String.self, forKey: .displayName) ?? "Parthey"
+        nearbySuggestionsEnabled = try c.decodeIfPresent(Bool.self, forKey: .nearbySuggestionsEnabled) ?? true
+        dailyHomePickEnabled = try c.decodeIfPresent(Bool.self, forKey: .dailyHomePickEnabled) ?? true
+        homeTown = try c.decodeIfPresent(String.self, forKey: .homeTown) ?? "Burlington"
+        suggestionRadiusMiles = try c.decodeIfPresent(Double.self, forKey: .suggestionRadiusMiles) ?? 2.0
+        suggestionStartHour = try c.decodeIfPresent(Int.self, forKey: .suggestionStartHour) ?? 8
+        suggestionEndHour = try c.decodeIfPresent(Int.self, forKey: .suggestionEndHour) ?? 18
+    }
 }
 
 /// Everything persisted locally, in one Codable document.
@@ -121,4 +173,29 @@ struct StoredData: Codable {
     var places: [Place]
     var checkIns: [CheckIn]
     var profile: UserProfile
+}
+
+extension Place {
+    private enum PlaceCodingKeys: String, CodingKey {
+        case id, name, type, town, address, listedRating, priceLevel, hours
+        case notes, tags, addedBy, listStatus, latitude, longitude
+    }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: PlaceCodingKeys.self)
+        id = try c.decode(UUID.self, forKey: .id)
+        name = try c.decode(String.self, forKey: .name)
+        type = try c.decode(PlaceType.self, forKey: .type)
+        town = try c.decode(String.self, forKey: .town)
+        address = try c.decode(String.self, forKey: .address)
+        listedRating = try c.decodeIfPresent(Double.self, forKey: .listedRating)
+        priceLevel = try c.decodeIfPresent(String.self, forKey: .priceLevel)
+        hours = try c.decodeIfPresent(String.self, forKey: .hours)
+        notes = try c.decode(String.self, forKey: .notes)
+        tags = try c.decode([String].self, forKey: .tags)
+        addedBy = try c.decodeIfPresent(String.self, forKey: .addedBy)
+        listStatus = try c.decodeIfPresent(PlaceListStatus.self, forKey: .listStatus) ?? .none
+        latitude = try c.decodeIfPresent(Double.self, forKey: .latitude)
+        longitude = try c.decodeIfPresent(Double.self, forKey: .longitude)
+    }
 }

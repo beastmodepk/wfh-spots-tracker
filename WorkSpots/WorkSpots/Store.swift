@@ -148,6 +148,77 @@ final class WorkSpotsStore: ObservableObject {
 
     var wouldReturnCount: Int { checkIns.filter(\.wouldReturn).count }
 
+    // MARK: On Deck / Repeats / Never
+
+    /// The rating used to rank a spot: its listed rating, falling back to
+    /// the community average once it has check-ins. Nil means unrated.
+    func effectiveRating(for place: Place) -> Double? {
+        place.listedRating ?? communityRating(for: place.id)?.average
+    }
+
+    /// On Deck spots, highest rated first (unrated last), then by name.
+    var onDeckPlaces: [Place] {
+        places
+            .filter { $0.listStatus == .onDeck }
+            .sorted { a, b in
+                let ra = effectiveRating(for: a) ?? -1
+                let rb = effectiveRating(for: b) ?? -1
+                if ra != rb { return ra > rb }
+                return a.name < b.name
+            }
+    }
+
+    /// Spots the user wants to go back to, highest rated first.
+    var repeatsPlaces: [Place] {
+        places
+            .filter { $0.listStatus == .repeats }
+            .sorted { a, b in
+                let ra = effectiveRating(for: a) ?? -1
+                let rb = effectiveRating(for: b) ?? -1
+                if ra != rb { return ra > rb }
+                return a.name < b.name
+            }
+    }
+
+    var onDeckCount: Int { places.filter { $0.listStatus == .onDeck }.count }
+
+    /// Ordering for the "All" (Discover) list: On Deck spots first, sorted
+    /// by highest rating; every other spot keeps its existing order and
+    /// flows straight after, with no section break between the two.
+    func discoverOrdered(_ input: [Place]) -> [Place] {
+        let indexed = Array(input.enumerated())
+        return indexed.sorted { a, b in
+            let aDeck = a.element.listStatus == .onDeck
+            let bDeck = b.element.listStatus == .onDeck
+            if aDeck != bDeck { return aDeck && !bDeck }
+            if aDeck && bDeck {
+                let ra = effectiveRating(for: a.element) ?? -1
+                let rb = effectiveRating(for: b.element) ?? -1
+                if ra != rb { return ra > rb }
+            }
+            return a.offset < b.offset
+        }.map(\.element)
+    }
+
+    func setListStatus(_ status: PlaceListStatus, for placeID: UUID) {
+        guard let index = places.firstIndex(where: { $0.id == placeID }) else { return }
+        places[index].listStatus = status
+    }
+
+    /// The small ring button's action: On Deck if it isn't, off if it is.
+    func toggleOnDeck(for placeID: UUID) {
+        guard let place = place(for: placeID) else { return }
+        setListStatus(place.listStatus == .onDeck ? .none : .onDeck, for: placeID)
+    }
+
+    /// After a check-in at an On Deck spot, the user's Repeat / Never choice.
+    func completeOnDeck(for placeID: UUID, choice: OnDeckCompletionChoice) {
+        switch choice {
+        case .repeats: setListStatus(.repeats, for: placeID)
+        case .never: setListStatus(.never, for: placeID)
+        }
+    }
+
     // MARK: Mutations
 
     @discardableResult
