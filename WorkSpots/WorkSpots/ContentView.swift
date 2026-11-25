@@ -6,6 +6,12 @@ struct ContentView: View {
             DiscoverView()
                 .tabItem { Label("Discover", systemImage: "magnifyingglass") }
 
+            OnDeckView()
+                .tabItem { Label("On Deck", systemImage: "circle.circle") }
+
+            RepeatsView()
+                .tabItem { Label("Repeats", systemImage: "repeat") }
+
             TopRatedView()
                 .tabItem { Label("Top Rated", systemImage: "trophy.fill") }
 

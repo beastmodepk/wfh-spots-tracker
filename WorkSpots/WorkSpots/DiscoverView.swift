@@ -209,3 +209,74 @@ struct PlaceRowView: View {
         .padding(.vertical, 4)
     }
 }
+
+/// The On Deck tab: spots saved to try next, highest rated first.
+/// This order is also the suggestion priority — the top spot in a town is
+/// the one (and only one) that can be suggested there that day.
+struct OnDeckView: View {
+    @EnvironmentObject private var store: WorkSpotsStore
+
+    var body: some View {
+        NavigationStack {
+            List {
+                Section {
+                    ForEach(store.onDeckPlaces) { place in
+                        NavigationLink(value: place.id) {
+                            PlaceRowView(place: place)
+                        }
+                    }
+                } header: {
+                    Text("\(store.onDeckPlaces.count) spot\(store.onDeckPlaces.count == 1 ? "" : "s") · highest rated first")
+                }
+            }
+            .navigationTitle("On Deck")
+            .navigationDestination(for: UUID.self) { placeID in
+                PlaceDetailView(placeID: placeID)
+            }
+            .overlay {
+                if store.onDeckPlaces.isEmpty {
+                    ContentUnavailableView(
+                        "Nothing On Deck",
+                        systemImage: "circle.circle",
+                        description: Text("Tap the small ring on any spot in Discover to save it here to try next.")
+                    )
+                }
+            }
+        }
+    }
+}
+
+/// The Repeats tab: spots the user tried from On Deck and chose to go
+/// back to, highest rated first.
+struct RepeatsView: View {
+    @EnvironmentObject private var store: WorkSpotsStore
+
+    var body: some View {
+        NavigationStack {
+            List {
+                Section {
+                    ForEach(store.repeatsPlaces) { place in
+                        NavigationLink(value: place.id) {
+                            PlaceRowView(place: place)
+                        }
+                    }
+                } header: {
+                    Text("\(store.repeatsPlaces.count) spot\(store.repeatsPlaces.count == 1 ? "" : "s") you'd go back to")
+                }
+            }
+            .navigationTitle("Repeats")
+            .navigationDestination(for: UUID.self) { placeID in
+                PlaceDetailView(placeID: placeID)
+            }
+            .overlay {
+                if store.repeatsPlaces.isEmpty {
+                    ContentUnavailableView(
+                        "No repeats yet",
+                        systemImage: "repeat",
+                        description: Text("After you check in at an On Deck spot, choose Repeat and it will live here.")
+                    )
+                }
+            }
+        }
+    }
+}
