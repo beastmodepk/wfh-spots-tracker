@@ -178,6 +178,7 @@
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_CFBundleDisplayName = "Work Spots";
+				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
 				INFOPLIST_KEY_NSLocationAlwaysAndWhenInUseUsageDescription = "Work Spots uses your location to suggest one On Deck spot when you arrive in its area — never more than one per area per day.";
 				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "Work Spots uses your location to suggest one On Deck spot when you arrive in its area.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
@@ -206,6 +207,7 @@
 				DEVELOPMENT_TEAM = "";
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_CFBundleDisplayName = "Work Spots";
+				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
 				INFOPLIST_KEY_NSLocationAlwaysAndWhenInUseUsageDescription = "Work Spots uses your location to suggest one On Deck spot when you arrive in its area — never more than one per area per day.";
 				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "Work Spots uses your location to suggest one On Deck spot when you arrive in its area.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
