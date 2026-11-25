@@ -32,6 +32,38 @@ struct ProfileView: View {
                         }
                     }
                     LabeledContent("Would return", value: "\(store.wouldReturnCount)")
+                    LabeledContent("On Deck", value: "\(store.onDeckCount)")
+                }
+
+                Section("On Deck notifications") {
+                    Toggle("Nearby suggestions", isOn: $store.profile.nearbySuggestionsEnabled)
+                    Toggle("Daily pick at home", isOn: $store.profile.dailyHomePickEnabled)
+                    Picker("Home area", selection: $store.profile.homeTown) {
+                        ForEach(store.towns, id: \.self) { town in
+                            Text(town).tag(town)
+                        }
+                    }
+                    Stepper(value: $store.profile.dailyHomePickHour, in: 5...12) {
+                        Text("Daily pick at \(store.profile.dailyHomePickHour):00")
+                    }
+                    Stepper(value: $store.profile.suggestionRadiusMiles, in: 0.5...10, step: 0.5) {
+                        Text("Suggest within \(store.profile.suggestionRadiusMiles, specifier: "%.1f") mi")
+                    }
+                    Stepper(value: $store.profile.suggestionStartHour, in: 0...23) {
+                        Text("Suggestions from \(store.profile.suggestionStartHour):00")
+                    }
+                    Stepper(value: $store.profile.suggestionEndHour, in: 1...24) {
+                        Text("Suggestions until \(store.profile.suggestionEndHour):00")
+                    }
+                    Text("One suggestion per area per day, at most two a day, and your home area gets the daily pick instead of an arrival ping.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+                .onChange(of: store.profile.nearbySuggestionsEnabled) { _, isOn in
+                    if isOn {
+                        NearbyNotificationManager.shared.requestAuthorizationIfNeeded()
+                        store.refreshNotifications()
+                    }
                 }
 
                 Section("About") {

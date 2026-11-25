@@ -138,6 +138,22 @@ enum SeedData {
               ["stretch"]),
     ]
 
+
+    /// Approximate coordinates geocoded from each seed place's street
+    /// address, keyed by the seed number in `place(_:...)`. Good enough
+    /// for town-level clusters and distance tie-breaks; not survey-grade.
+    static let coordinates: [Int: (latitude: Double, longitude: Double)] = [
+        1: (42.4972, -71.2001), 2: (42.4817, -71.2137), 3: (42.4835, -71.2268),
+        4: (42.4858, -71.2285), 5: (42.4738, -71.2305), 6: (42.4663, -71.1898),
+        7: (42.5196, -71.1528), 8: (42.4910, -71.1348), 9: (42.4893, -71.2752),
+        10: (42.4471, -71.2265), 11: (42.4480, -71.2287), 12: (42.5390, -71.2580),
+        13: (42.5830, -71.3670), 14: (42.5995, -71.3515), 15: (42.5970, -71.3480),
+        16: (42.5820, -71.3810), 17: (42.5980, -71.3540), 18: (42.5052, -71.2013),
+        19: (42.5143, -71.1522), 20: (42.4479, -71.2308), 21: (42.4521, -71.1366),
+        22: (42.4909, -71.2766), 23: (42.5948, -71.3510), 24: (42.5583, -71.2693),
+        25: (42.6454, -71.3113), 26: (42.6420, -71.3160),
+    ]
+
     /// Builds a seed place with a stable, deterministic ID so seeded data is
     /// identical on every first launch.
     private static func place(_ n: Int,
@@ -163,7 +179,9 @@ enum SeedData {
             hours: hours,
             notes: notes,
             tags: tags,
-            addedBy: nil
+            addedBy: nil,
+            latitude: coordinates[n]?.latitude,
+            longitude: coordinates[n]?.longitude
         )
     }
 }

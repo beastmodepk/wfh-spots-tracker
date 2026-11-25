@@ -1,4 +1,6 @@
 import Foundation
+import CoreLocation
+import UserNotifications
 
 // MARK: - Repository boundary
 //
@@ -45,7 +47,7 @@ final class LocalJSONRepository: WorkSpotsRepository {
 final class WorkSpotsStore: ObservableObject {
     @Published var places: [Place] { didSet { persist() } }
     @Published var checkIns: [CheckIn] { didSet { persist() } }
-    @Published var profile: UserProfile { didSet { persist() } }
+    @Published var profile: UserProfile { didSet { persist(); refreshNotifications() } }
 
     private let repository: WorkSpotsRepository
     private var isLoading = true
@@ -53,7 +55,16 @@ final class WorkSpotsStore: ObservableObject {
     init(repository: WorkSpotsRepository = LocalJSONRepository()) {
         self.repository = repository
         if let stored = repository.load(), !stored.places.isEmpty {
-            places = stored.places
+            // Backfill coordinates for seed places saved before they had any.
+            places = stored.places.map { place in
+                var place = place
+                if place.latitude == nil,
+                   let seed = SeedData.places.first(where: { $0.id == place.id }) {
+                    place.latitude = seed.latitude
+                    place.longitude = seed.longitude
+                }
+                return place
+            }
             checkIns = stored.checkIns
             profile = stored.profile
         } else {
@@ -64,6 +75,14 @@ final class WorkSpotsStore: ObservableObject {
         }
         isLoading = false
         persist()
+        refreshNotifications()
+    }
+
+    /// Rebuilds the town geofences and the home daily pick from the
+    /// current On Deck list and notification settings.
+    func refreshNotifications() {
+        guard !isLoading else { return }
+        NearbyNotificationManager.shared.refresh(onDeckPlaces: onDeckPlaces, profile: profile)
     }
 
     private func persist() {
@@ -203,6 +222,12 @@ final class WorkSpotsStore: ObservableObject {
     func setListStatus(_ status: PlaceListStatus, for placeID: UUID) {
         guard let index = places.firstIndex(where: { $0.id == placeID }) else { return }
         places[index].listStatus = status
+        if status == .onDeck {
+            // Permissions are asked when the feature is first used,
+            // not at first launch.
+            NearbyNotificationManager.shared.requestAuthorizationIfNeeded()
+        }
+        refreshNotifications()
     }
 
     /// The small ring button's action: On Deck if it isn't, off if it is.
@@ -269,5 +294,150 @@ final class WorkSpotsStore: ObservableObject {
         )
         checkIns.append(checkIn)
         return checkIn
+    }
+}
+
+
+// MARK: - Smart nearby notifications
+//
+// One geofence per TOWN that has On Deck spots — never one per spot — so
+// arriving somewhere with five saved spots produces at most one
+// suggestion. Guardrails, all enforced in `passesGuards(town:)`:
+//   * at most 1 notification per area per calendar day
+//   * at most 2 notifications per day in total
+//   * at least 4 hours between any two notifications
+//   * only inside the user's suggestion hours (default 8am–6pm)
+// The home town never gets an arrival ping; it gets one daily pick
+// (a repeating calendar notification) instead.
+final class NearbyNotificationManager: NSObject, CLLocationManagerDelegate {
+    static let shared = NearbyNotificationManager()
+
+    private let locationManager = CLLocationManager()
+    private var onDeckPlaces: [Place] = []
+    private var profile = UserProfile()
+
+    private override init() {
+        super.init()
+        locationManager.delegate = self
+    }
+
+    func requestAuthorizationIfNeeded() {
+        locationManager.requestAlwaysAuthorization()
+        UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound, .badge]) { _, _ in }
+    }
+
+    func refresh(onDeckPlaces: [Place], profile: UserProfile) {
+        self.onDeckPlaces = onDeckPlaces
+        self.profile = profile
+
+        for region in locationManager.monitoredRegions {
+            locationManager.stopMonitoring(for: region)
+        }
+        UNUserNotificationCenter.current()
+            .removePendingNotificationRequests(withIdentifiers: ["home-daily-pick"])
+        guard profile.nearbySuggestionsEnabled else { return }
+
+        let located = onDeckPlaces.filter { $0.latitude != nil && $0.longitude != nil }
+        let byTown = Dictionary(grouping: located, by: { $0.town })
+        for (town, places) in byTown {
+            let latitudes = places.compactMap(\.latitude)
+            let longitudes = places.compactMap(\.longitude)
+            guard !latitudes.isEmpty, !longitudes.isEmpty else { continue }
+            let center = CLLocationCoordinate2D(
+                latitude: latitudes.reduce(0, +) / Double(latitudes.count),
+                longitude: longitudes.reduce(0, +) / Double(longitudes.count)
+            )
+            let milesInMeters = profile.suggestionRadiusMiles * 1609.34
+            let radius = max(500, min(milesInMeters, locationManager.maximumRegionMonitoringDistance))
+            let region = CLCircularRegion(center: center, radius: radius, identifier: "town.\(town)")
+            region.notifyOnEntry = true
+            region.notifyOnExit = false
+            locationManager.startMonitoring(for: region)
+        }
+        scheduleHomeDailyPick()
+    }
+
+    /// The home area's single daily suggestion, as a repeating calendar
+    /// notification naming the top-rated On Deck spot in the home town.
+    private func scheduleHomeDailyPick() {
+        guard profile.dailyHomePickEnabled else { return }
+        // onDeckPlaces arrives sorted by rating, so the first home-town
+        // entry is the pick.
+        guard let pick = onDeckPlaces.first(where: { $0.town == profile.homeTown }) else { return }
+        let content = UNMutableNotificationContent()
+        content.title = "Today's \(profile.homeTown) pick"
+        content.body = "\(pick.name) is On Deck — it's the top-rated spot on your list there."
+        content.sound = .default
+        var components = DateComponents()
+        components.hour = profile.dailyHomePickHour
+        components.minute = 0
+        let trigger = UNCalendarNotificationTrigger(dateMatching: components, repeats: true)
+        let request = UNNotificationRequest(identifier: "home-daily-pick", content: content, trigger: trigger)
+        UNUserNotificationCenter.current().add(request)
+    }
+
+    func locationManager(_ manager: CLLocationManager, didEnterRegion region: CLRegion) {
+        guard profile.nearbySuggestionsEnabled else { return }
+        guard region.identifier.hasPrefix("town.") else { return }
+        let town = String(region.identifier.dropFirst("town.".count))
+        // Home gets the daily pick, never an arrival ping.
+        guard town != profile.homeTown else { return }
+        guard let pick = onDeckPlaces.first(where: { $0.town == town }) else { return }
+        guard passesGuards(town: town) else { return }
+
+        let content = UNMutableNotificationContent()
+        content.title = "You're in \(town) — one On Deck pick"
+        content.body = "\(pick.name) is the top-rated spot on your On Deck list here."
+        content.sound = .default
+        let trigger = UNTimeIntervalNotificationTrigger(timeInterval: 1, repeats: false)
+        let request = UNNotificationRequest(
+            identifier: "on-deck-\(town)-\(Date().timeIntervalSince1970)",
+            content: content,
+            trigger: trigger
+        )
+        UNUserNotificationCenter.current().add(request)
+        recordNotification(town: town)
+    }
+
+    func locationManager(_ manager: CLLocationManager, monitoringDidFailFor region: CLRegion?, withError error: Error) {
+        // A town cluster that fails to register simply gets no arrival
+        // suggestion; the daily home pick is unaffected.
+    }
+
+    // MARK: Guardrails (UserDefaults-backed, per calendar day)
+
+    private func passesGuards(town: String) -> Bool {
+        let now = Date()
+        let calendar = Calendar.current
+        let hour = calendar.component(.hour, from: now)
+        guard hour >= profile.suggestionStartHour, hour < profile.suggestionEndHour else { return false }
+
+        let defaults = UserDefaults.standard
+        if let lastTown = defaults.object(forKey: "onDeck.lastNotified.\(town)") as? Date,
+           calendar.isDate(lastTown, inSameDayAs: now) {
+            return false
+        }
+        if let lastAny = defaults.object(forKey: "onDeck.lastNotified.any") as? Date,
+           now.timeIntervalSince(lastAny) < 4 * 60 * 60 {
+            return false
+        }
+        let countKey = "onDeck.count.\(Self.dayStamp(now))"
+        guard defaults.integer(forKey: countKey) < 2 else { return false }
+        return true
+    }
+
+    private func recordNotification(town: String) {
+        let now = Date()
+        let defaults = UserDefaults.standard
+        defaults.set(now, forKey: "onDeck.lastNotified.\(town)")
+        defaults.set(now, forKey: "onDeck.lastNotified.any")
+        let countKey = "onDeck.count.\(Self.dayStamp(now))"
+        defaults.set(defaults.integer(forKey: countKey) + 1, forKey: countKey)
+    }
+
+    private static func dayStamp(_ date: Date) -> String {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyy-MM-dd"
+        return formatter.string(from: date)
     }
 }

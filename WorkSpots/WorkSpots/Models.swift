@@ -143,6 +143,8 @@ struct UserProfile: Codable, Hashable {
     var dailyHomePickEnabled: Bool = true
     /// The town treated as home: no arrival pings there, daily pick instead.
     var homeTown: String = "Burlington"
+    /// Local hour the daily home pick is delivered.
+    var dailyHomePickHour: Int = 9
     /// How close counts as "in the area", in miles.
     var suggestionRadiusMiles: Double = 2.0
     /// Suggestions are only sent between these local hours.
@@ -153,7 +155,7 @@ struct UserProfile: Codable, Hashable {
 extension UserProfile {
     private enum ProfileCodingKeys: String, CodingKey {
         case displayName, nearbySuggestionsEnabled, dailyHomePickEnabled
-        case homeTown, suggestionRadiusMiles, suggestionStartHour, suggestionEndHour
+        case homeTown, dailyHomePickHour, suggestionRadiusMiles, suggestionStartHour, suggestionEndHour
     }
 
     init(from decoder: Decoder) throws {
@@ -162,6 +164,7 @@ extension UserProfile {
         nearbySuggestionsEnabled = try c.decodeIfPresent(Bool.self, forKey: .nearbySuggestionsEnabled) ?? true
         dailyHomePickEnabled = try c.decodeIfPresent(Bool.self, forKey: .dailyHomePickEnabled) ?? true
         homeTown = try c.decodeIfPresent(String.self, forKey: .homeTown) ?? "Burlington"
+        dailyHomePickHour = try c.decodeIfPresent(Int.self, forKey: .dailyHomePickHour) ?? 9
         suggestionRadiusMiles = try c.decodeIfPresent(Double.self, forKey: .suggestionRadiusMiles) ?? 2.0
         suggestionStartHour = try c.decodeIfPresent(Int.self, forKey: .suggestionStartHour) ?? 8
         suggestionEndHour = try c.decodeIfPresent(Int.self, forKey: .suggestionEndHour) ?? 18
