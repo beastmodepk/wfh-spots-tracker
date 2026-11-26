@@ -117,7 +117,18 @@ struct CheckInView: View {
             .buttonStyle(.bordered)
             .controlSize(.large)
 
-            Text("Repeat moves it to the Repeats tab. Never means it won't be suggested again.")
+            Button {
+                store.deferOnDeckDecision(for: place.id)
+                dismiss()
+            } label: {
+                Label("Ask me again in 30 mins", systemImage: "clock")
+                    .font(.headline)
+                    .frame(maxWidth: .infinity)
+            }
+            .buttonStyle(.bordered)
+            .controlSize(.large)
+
+            Text("Repeat moves it to the Repeats tab. Never means it won't be suggested again. Ask again and a reminder with both choices arrives in 30 minutes.")
                 .font(.caption)
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)

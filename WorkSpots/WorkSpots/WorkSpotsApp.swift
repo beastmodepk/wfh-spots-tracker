@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 
 @main
 struct WorkSpotsApp: App {
@@ -8,6 +9,9 @@ struct WorkSpotsApp: App {
         WindowGroup {
             ContentView()
                 .environmentObject(store)
+                .onReceive(NotificationCenter.default.publisher(for: UIApplication.didBecomeActiveNotification)) { _ in
+                    store.applyPendingOnDeckDecisions()
+                }
         }
     }
 }

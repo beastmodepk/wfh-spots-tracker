@@ -51,6 +51,7 @@ final class WorkSpotsStore: ObservableObject {
 
     private let repository: WorkSpotsRepository
     private var isLoading = true
+    private var decisionObserver: NSObjectProtocol?
 
     init(repository: WorkSpotsRepository = LocalJSONRepository()) {
         self.repository = repository
@@ -76,6 +77,35 @@ final class WorkSpotsStore: ObservableObject {
         isLoading = false
         persist()
         refreshNotifications()
+        applyPendingOnDeckDecisions()
+        decisionObserver = NotificationCenter.default.addObserver(
+            forName: .onDeckDecisionMade, object: nil, queue: .main
+        ) { [weak self] _ in
+            self?.applyPendingOnDeckDecisions()
+        }
+    }
+
+    /// "Ask me again in 30 mins" on the post-check-in prompt: the spot
+    /// leaves On Deck undecided, and a reminder notification with
+    /// Repeat / Never actions arrives 30 minutes later.
+    func deferOnDeckDecision(for placeID: UUID) {
+        guard let place = place(for: placeID) else { return }
+        setListStatus(.none, for: placeID)
+        NearbyNotificationManager.shared.scheduleDecisionReminder(placeID: placeID, placeName: place.name)
+    }
+
+    /// Applies Repeat / Never choices tapped on the 30-minute reminder
+    /// (the manager records them in UserDefaults; the store owns the data).
+    func applyPendingOnDeckDecisions() {
+        let key = "onDeck.pendingDecisions"
+        guard let pending = UserDefaults.standard.dictionary(forKey: key) as? [String: String],
+              !pending.isEmpty else { return }
+        UserDefaults.standard.removeObject(forKey: key)
+        for (idString, statusRaw) in pending {
+            guard let id = UUID(uuidString: idString),
+                  let status = PlaceListStatus(rawValue: statusRaw) else { continue }
+            setListStatus(status, for: id)
+        }
     }
 
     /// Rebuilds the town geofences and the home daily pick from the
@@ -315,7 +345,7 @@ final class WorkSpotsStore: ObservableObject {
 //   * only inside the user's suggestion hours (default 8am–6pm)
 // The home town never gets an arrival ping; it gets one daily pick
 // (a repeating calendar notification) instead.
-final class NearbyNotificationManager: NSObject, CLLocationManagerDelegate {
+final class NearbyNotificationManager: NSObject, CLLocationManagerDelegate, UNUserNotificationCenterDelegate {
     static let shared = NearbyNotificationManager()
 
     private let locationManager = CLLocationManager()
@@ -325,6 +355,7 @@ final class NearbyNotificationManager: NSObject, CLLocationManagerDelegate {
     private override init() {
         super.init()
         locationManager.delegate = self
+        UNUserNotificationCenter.current().delegate = self
     }
 
     func requestAuthorizationIfNeeded() {
@@ -445,5 +476,77 @@ final class NearbyNotificationManager: NSObject, CLLocationManagerDelegate {
         let formatter = DateFormatter()
         formatter.dateFormat = "yyyy-MM-dd"
         return formatter.string(from: date)
+    }
+}
+
+
+extension Notification.Name {
+    /// Posted when the user answers Repeat / Never on a decision reminder.
+    static let onDeckDecisionMade = Notification.Name("onDeckDecisionMade")
+}
+
+extension NearbyNotificationManager {
+    /// Schedules the "ask me again" reminder for one spot, 30 minutes out.
+    /// Its notification carries Repeat and Never actions, so the user can
+    /// decide without opening the app.
+    func scheduleDecisionReminder(placeID: UUID, placeName: String) {
+        let repeatAction = UNNotificationAction(identifier: "REPEAT_ACTION", title: "Repeat", options: [])
+        let neverAction = UNNotificationAction(identifier: "NEVER_ACTION", title: "Never", options: [])
+        let category = UNNotificationCategory(
+            identifier: "ON_DECK_DECISION",
+            actions: [repeatAction, neverAction],
+            intentIdentifiers: [],
+            options: []
+        )
+        let center = UNUserNotificationCenter.current()
+        center.setNotificationCategories([category])
+        center.requestAuthorization(options: [.alert, .sound, .badge]) { _, _ in }
+
+        let content = UNMutableNotificationContent()
+        content.title = "Still deciding on \(placeName)?"
+        content.body = "You checked in there earlier — should it be a Repeat, or never suggested again?"
+        content.sound = .default
+        content.categoryIdentifier = "ON_DECK_DECISION"
+        content.userInfo = ["placeID": placeID.uuidString]
+        let trigger = UNTimeIntervalNotificationTrigger(timeInterval: 30 * 60, repeats: false)
+        let request = UNNotificationRequest(
+            identifier: "on-deck-decision-\(placeID.uuidString)",
+            content: content,
+            trigger: trigger
+        )
+        center.add(request)
+    }
+
+    /// Show the reminder as a banner even if the app is in the foreground.
+    func userNotificationCenter(
+        _ center: UNUserNotificationCenter,
+        willPresent notification: UNNotification,
+        withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void
+    ) {
+        completionHandler([.banner, .sound])
+    }
+
+    /// Records a Repeat / Never tap from the reminder; the store applies
+    /// it (immediately if the app is running, otherwise on next launch).
+    func userNotificationCenter(
+        _ center: UNUserNotificationCenter,
+        didReceive response: UNNotificationResponse,
+        withCompletionHandler completionHandler: @escaping () -> Void
+    ) {
+        defer { completionHandler() }
+        let userInfo = response.notification.request.content.userInfo
+        guard let placeID = userInfo["placeID"] as? String else { return }
+        let status: String?
+        switch response.actionIdentifier {
+        case "REPEAT_ACTION": status = PlaceListStatus.repeats.rawValue
+        case "NEVER_ACTION": status = PlaceListStatus.never.rawValue
+        default: status = nil
+        }
+        guard let status else { return }
+        let key = "onDeck.pendingDecisions"
+        var pending = (UserDefaults.standard.dictionary(forKey: key) as? [String: String]) ?? [:]
+        pending[placeID] = status
+        UserDefaults.standard.set(pending, forKey: key)
+        NotificationCenter.default.post(name: .onDeckDecisionMade, object: nil)
     }
 }
