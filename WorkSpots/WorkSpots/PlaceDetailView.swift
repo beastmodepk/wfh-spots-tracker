@@ -53,14 +53,39 @@ struct PlaceDetailView: View {
                     .controlSize(.large)
 
                     HStack(spacing: 8) {
-                        Image(systemName: "circle.circle")
-                            .foregroundStyle(Color.accentColor)
-                        Text(place.listStatus == .onDeck ? "On Deck" : "Add to On Deck")
-                            .font(.subheadline.weight(.semibold))
-                        Spacer()
-                        OnDeckRingButton(isOn: place.listStatus == .onDeck) {
+                        // The text-and-bullet itself is the On Deck toggle.
+                        Button {
                             store.toggleOnDeck(for: place.id)
+                        } label: {
+                            HStack(spacing: 8) {
+                                Image(systemName: place.listStatus == .onDeck ? "circle.circle.fill" : "circle.circle")
+                                    .foregroundStyle(Color.accentColor)
+                                Text(place.listStatus == .onDeck ? "On Deck" : "Add to On Deck")
+                                    .font(.subheadline.weight(.semibold))
+                                    .foregroundStyle(Color.primary)
+                            }
+                            .contentShape(Rectangle())
                         }
+                        .buttonStyle(.borderless)
+
+                        Spacer()
+
+                        // On the right, where the ring button used to be:
+                        // Add to Repeats.
+                        Button {
+                            store.toggleRepeats(for: place.id)
+                        } label: {
+                            HStack(spacing: 5) {
+                                Image(systemName: "repeat")
+                                Text(place.listStatus == .repeats ? "In Repeats" : "Add to Repeats")
+                            }
+                            .font(.subheadline.weight(.semibold))
+                            .foregroundStyle(place.listStatus == .repeats ? Color.white : Color.accentColor)
+                            .padding(.horizontal, 10)
+                            .padding(.vertical, 6)
+                            .background(place.listStatus == .repeats ? Color.accentColor : Color.accentColor.opacity(0.12), in: Capsule())
+                        }
+                        .buttonStyle(.borderless)
                     }
                 }
                 .listRowInsets(EdgeInsets(top: 12, leading: 16, bottom: 12, trailing: 16))

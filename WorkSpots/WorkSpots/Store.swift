@@ -230,6 +230,12 @@ final class WorkSpotsStore: ObservableObject {
         refreshNotifications()
     }
 
+    /// The Add to Repeats button's action: Repeats if it isn't, off if it is.
+    func toggleRepeats(for placeID: UUID) {
+        guard let place = place(for: placeID) else { return }
+        setListStatus(place.listStatus == .repeats ? .none : .repeats, for: placeID)
+    }
+
     /// The small ring button's action: On Deck if it isn't, off if it is.
     func toggleOnDeck(for placeID: UUID) {
         guard let place = place(for: placeID) else { return }
